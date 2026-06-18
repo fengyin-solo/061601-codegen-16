@@ -14,7 +14,8 @@ const gameStore = useGameStore()
 const charactersWithConfig = computed(() => {
   return gameStore.unlockedCharacters.map(charState => {
     const config = gameConfig.characters.find(c => c.id === charState.id)
-    return { state: charState, config }
+    const addressTerm = gameStore.activeTitle?.addressTerms[charState.id] || null
+    return { state: charState, config, addressTerm }
   }).filter(item => item.config)
 })
 
@@ -28,6 +29,7 @@ function selectCharacter(id: string) {
     <h2 class="panel-title">
       <span class="title-icon">💕</span>
       角色状态
+      <span v-if="gameStore.activeTitle" class="panel-badge">{{ gameStore.activeTitle.icon }} {{ gameStore.activeTitle.name }}</span>
     </h2>
 
     <div class="character-list">
@@ -43,6 +45,7 @@ function selectCharacter(id: string) {
         <div class="character-info">
           <div class="character-header">
             <span class="character-name">{{ item.config?.name }}</span>
+            <span v-if="item.addressTerm" class="address-term">{{ item.addressTerm }}</span>
             <span class="affinity-stage">{{ getAffinityStage(item.state.affinity) }}</span>
           </div>
           
@@ -99,6 +102,16 @@ function selectCharacter(id: string) {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.panel-badge {
+  font-size: 12px;
+  padding: 3px 10px;
+  background: linear-gradient(135deg, var(--accent-light), var(--bg-tertiary));
+  border: 1px solid var(--accent-primary);
+  border-radius: 9999px;
+  color: var(--accent-primary);
+  font-weight: 500;
 }
 
 .title-icon {
@@ -159,6 +172,22 @@ function selectCharacter(id: string) {
 .character-name {
   font-weight: 600;
   font-size: 15px;
+}
+
+.address-term {
+  font-size: 11px;
+  padding: 1px 6px;
+  background: linear-gradient(135deg, #fdf2f8, #faf5ff);
+  border: 1px solid #fbcfe8;
+  border-radius: 4px;
+  color: var(--accent-primary);
+  font-weight: 500;
+}
+
+[data-theme='dark'] .address-term {
+  background: linear-gradient(135deg, #831843, #581c87);
+  border-color: #db2777;
+  color: #f9a8d4;
 }
 
 .affinity-stage {

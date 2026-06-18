@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useGameStore } from '../stores/gameStore'
+import { getTimeLabel } from '../utils/gameUtils'
 import gameConfig from '../config/gameConfig'
 
 const emit = defineEmits<{
@@ -13,6 +14,15 @@ const canPerformAction = computed(() => gameStore.actionsRemaining > 0)
 
 const hasSelectedCharacter = computed(() => gameStore.selectedCharacterId !== null)
 
+const nextTimeLabel = computed(() => {
+  const slots = gameConfig.timeSlots
+  const idx = slots.indexOf(gameStore.timeSlot)
+  if (idx < slots.length - 1) {
+    return getTimeLabel(slots[idx + 1])
+  }
+  return '明天'
+})
+
 function doChat() {
   if (!hasSelectedCharacter.value || !canPerformAction.value) return
   gameStore.performAction('chat', gameStore.selectedCharacterId!)
@@ -21,6 +31,10 @@ function doChat() {
 function doWork() {
   if (!canPerformAction.value) return
   gameStore.performAction('work')
+}
+
+function doSkip() {
+  gameStore.skipTime()
 }
 </script>
 
@@ -66,12 +80,19 @@ function doWork() {
       </button>
     </div>
 
+    <div class="skip-section">
+      <button class="skip-btn" @click="doSkip">
+        <span class="skip-icon">⏩</span>
+        <span>推进到{{ nextTimeLabel }}</span>
+      </button>
+    </div>
+
     <div v-if="!hasSelectedCharacter" class="hint">
       💡 请先选择一个角色进行互动
     </div>
 
     <div v-if="!canPerformAction" class="hint warning">
-      ⚡ 今天的行动力已用完，等待明天吧~
+      ⚡ 今天的行动力已用完，点击「推进时间」继续
     </div>
   </div>
 </template>
@@ -149,6 +170,37 @@ function doWork() {
   background: var(--bg-secondary);
   padding: 2px 8px;
   border-radius: 9999px;
+}
+
+.skip-section {
+  margin-top: 12px;
+}
+
+.skip-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+  border: 1px dashed var(--border-light);
+}
+
+.skip-btn:hover {
+  background: var(--accent-light);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  transform: translateY(-2px);
+}
+
+.skip-icon {
+  font-size: 18px;
 }
 
 .hint {

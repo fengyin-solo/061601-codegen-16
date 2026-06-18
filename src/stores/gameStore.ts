@@ -316,6 +316,18 @@ export const useGameStore = defineStore('game', () => {
     return result
   }
 
+  function skipTime() {
+    saveHistory()
+    const nextSlot = getNextTimeSlot(timeSlot.value, gameConfig.timeSlots)
+    if (nextSlot === gameConfig.timeSlots[0]) {
+      nextDay()
+    } else {
+      timeSlot.value = nextSlot
+      addLog('system', `⏩ 时间流逝，来到了${getTimeLabel(timeSlot.value)}`)
+    }
+    checkAndTriggerEvent()
+  }
+
   function advanceTime() {
     const nextSlot = getNextTimeSlot(timeSlot.value, gameConfig.timeSlots)
     if (nextSlot === gameConfig.timeSlots[0]) {
@@ -393,6 +405,7 @@ export const useGameStore = defineStore('game', () => {
       timeSlot.value
     )
     const affinityChange = applyChatAffinityModifier(baseAffinityChange)
+    const bonus = affinityChange - baseAffinityChange
 
     behaviorStats.value.chatCount++
 
@@ -411,6 +424,7 @@ export const useGameStore = defineStore('game', () => {
 
     if (affinityChange > 0) {
       message += `，ta似乎很开心！（好感 +${affinityChange}）`
+      if (bonus > 0) message += `【称号+${Math.round(bonus * 10) / 10}】`
     } else if (affinityChange < 0) {
       message += `，ta好像不太感兴趣...（好感 ${affinityChange}）`
     } else {
@@ -444,6 +458,7 @@ export const useGameStore = defineStore('game', () => {
       charState.mood
     )
     const affinityChange = applyGiftAffinityModifier(baseAffinityChange)
+    const bonus = affinityChange - baseAffinityChange
 
     updateCharacterAffinity(characterId, affinityChange)
     updateCharacterMood(
@@ -463,10 +478,12 @@ export const useGameStore = defineStore('game', () => {
 
     if (isGiftLiked(giftId, charConfig)) {
       message += `，ta非常喜欢！（好感 +${affinityChange}）`
+      if (bonus > 0) message += `【称号+${Math.round(bonus * 10) / 10}】`
     } else if (isGiftDisliked(giftId, charConfig)) {
       message += `，ta好像不太喜欢...（好感 ${affinityChange}）`
     } else {
       message += `，ta收下了。（好感 +${affinityChange}）`
+      if (bonus > 0) message += `【称号+${Math.round(bonus * 10) / 10}】`
     }
 
     addLog('action', message, characterId)
@@ -491,7 +508,7 @@ export const useGameStore = defineStore('game', () => {
 
     let message = `💼 打工赚了 ${earned} 代币`
     if (earned > baseEarned) {
-      message += `（称号加成 +${earned - baseEarned}）`
+      message += `【称号+${earned - baseEarned}】`
     }
     message += '（角色们的心情略有下降）'
 
@@ -559,12 +576,13 @@ export const useGameStore = defineStore('game', () => {
     choice.effects.forEach(effect => {
       if (effect.affinityChange !== undefined) {
         let affinityChange = effect.affinityChange
-        if (affinityChange > 0) {
-          if (activeTitleId.value) {
-            const title = gameConfig.titles.find(t => t.id === activeTitleId.value)
-            if (title?.rewardModifier.chatAffinityMultiplier) {
-              affinityChange = Math.round(affinityChange * title.rewardModifier.chatAffinityMultiplier)
-            }
+        if (affinityChange > 0 && activeTitle.value) {
+          const mod = activeTitle.value.rewardModifier
+          let multiplier = 1
+          if (mod.chatAffinityMultiplier) multiplier = Math.max(multiplier, mod.chatAffinityMultiplier)
+          if (mod.giftAffinityMultiplier) multiplier = Math.max(multiplier, mod.giftAffinityMultiplier)
+          if (multiplier > 1) {
+            affinityChange = Math.round(affinityChange * multiplier)
           }
         }
         updateCharacterAffinity(effect.characterId, affinityChange)
@@ -575,7 +593,11 @@ export const useGameStore = defineStore('game', () => {
     })
 
     if (choice.resourceChange !== undefined) {
-      resources.value = Math.max(0, resources.value + choice.resourceChange)
+      let resourceChange = choice.resourceChange
+      if (resourceChange > 0 && activeTitle.value?.rewardModifier.resourceGainBonus) {
+        resourceChange += activeTitle.value.rewardModifier.resourceGainBonus
+      }
+      resources.value = Math.max(0, resources.value + resourceChange)
     }
 
     if (choice.unlockCharacterId) {
@@ -709,6 +731,7 @@ export const useGameStore = defineStore('game', () => {
     getCharacterAddressTerm,
     applyChatAffinityModifier,
     applyGiftAffinityModifier,
-    applyWorkRewardModifier
+    applyWorkRewardModifier,
+    skipTime
   }
 })

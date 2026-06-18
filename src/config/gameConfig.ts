@@ -314,7 +314,7 @@ export const gameConfig: GameConfig = {
       icon: '🌹',
       style: 'romantic',
       description: '善于用言语打动人心，聊天效果显著提升',
-      unlockCondition: { minChatCount: 20, minPositiveChoices: 8 },
+      unlockCondition: { minChatCount: 5, minPositiveChoices: 3 },
       rewardModifier: { chatAffinityMultiplier: 1.3, moodBonusMultiplier: 1.2 },
       addressTerms: {
         linxiaoyu: '温柔的诗人',
@@ -329,7 +329,7 @@ export const gameConfig: GameConfig = {
       icon: '💎',
       style: 'generous',
       description: '出手阔绰，送礼总能获得更多好感',
-      unlockCondition: { minGiftSpent: 300, minGiftCount: 10 },
+      unlockCondition: { minGiftSpent: 80, minGiftCount: 3 },
       rewardModifier: { giftAffinityMultiplier: 1.25 },
       addressTerms: {
         linxiaoyu: '贴心的施主',
@@ -344,7 +344,7 @@ export const gameConfig: GameConfig = {
       icon: '🐝',
       style: 'hardworking',
       description: '努力工作的人，打工收益大幅提高',
-      unlockCondition: { minWorkCount: 25 },
+      unlockCondition: { minWorkCount: 5 },
       rewardModifier: { workRewardMultiplier: 1.5, resourceGainBonus: 5 },
       addressTerms: {
         linxiaoyu: '勤奋的人',
@@ -359,7 +359,7 @@ export const gameConfig: GameConfig = {
       icon: '💍',
       style: 'devoted',
       description: '对一人一心一意，好感增长更快',
-      unlockCondition: { minExclusiveAffinity: 80, maxUnlockedCharacters: 2 },
+      unlockCondition: { minExclusiveAffinity: 50, maxUnlockedCharacters: 2 },
       rewardModifier: { giftAffinityMultiplier: 1.15, chatAffinityMultiplier: 1.15, moodBonusMultiplier: 1.3 },
       addressTerms: {
         linxiaoyu: '专一的你',
@@ -374,7 +374,7 @@ export const gameConfig: GameConfig = {
       icon: '🦋',
       style: 'playboy',
       description: '万花丛中过，魅力非凡但难以专注',
-      unlockCondition: { multiCharacterThreshold: 60 },
+      unlockCondition: { multiCharacterThreshold: 30 },
       rewardModifier: { chatAffinityMultiplier: 1.1 },
       addressTerms: {
         linxiaoyu: '受欢迎的人...',
@@ -389,7 +389,7 @@ export const gameConfig: GameConfig = {
       icon: '🦉',
       style: 'cautious',
       description: '行事稳妥，选择更安全的选项',
-      unlockCondition: { minPositiveChoices: 15, minDays: 14 },
+      unlockCondition: { minPositiveChoices: 5, minDays: 5 },
       rewardModifier: { moodBonusMultiplier: 1.4 },
       addressTerms: {
         linxiaoyu: '可靠的人',
@@ -404,7 +404,7 @@ export const gameConfig: GameConfig = {
       icon: '⚔️',
       style: 'adventurous',
       description: '敢于冒险，选择大胆选项，回报丰厚',
-      unlockCondition: { minRiskyChoices: 6 },
+      unlockCondition: { minRiskyChoices: 2 },
       rewardModifier: { workRewardMultiplier: 1.2, giftAffinityMultiplier: 1.1, chatAffinityMultiplier: 1.1 },
       addressTerms: {
         linxiaoyu: '勇敢的人',

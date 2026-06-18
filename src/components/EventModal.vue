@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useGameStore } from '../stores/gameStore'
 import gameConfig from '../config/gameConfig'
-import type { TitleConfig } from '../types/game'
+import type { TitleConfig, TitleStyle } from '../types/game'
 
 const gameStore = useGameStore()
 
@@ -20,34 +20,23 @@ const addressTerm = computed(() => {
   return activeTitle.value.addressTerms[event.value.characterId] || null
 })
 
+const stylePrefixMap: Record<TitleStyle, string> = {
+  romantic: '浪漫的你',
+  generous: '慷慨的你',
+  hardworking: '勤劳的你',
+  devoted: '专情的你',
+  playboy: '魅力四射的你',
+  cautious: '沉稳的你',
+  adventurous: '大胆的你'
+}
+
 const styledDescription = computed(() => {
   if (!event.value) return ''
   let desc = event.value.description
 
-  if (activeTitle.value && addressTerm.value) {
-    switch (activeTitle.value.style) {
-      case 'romantic':
-        desc = desc.replace(/你/g, '温柔的你').replace(/你/g, (m, i) => i === 0 ? '浪漫的你' : m)
-        break
-      case 'generous':
-        desc = desc.replace(/一看就是|看起来/g, '带着慷慨气息的')
-        break
-      case 'hardworking':
-        desc = desc.replace(/你/g, '勤劳的你')
-        break
-      case 'devoted':
-        desc = desc.replace(/你/g, '专情的你')
-        break
-      case 'playboy':
-        desc = desc.replace(/你/g, '魅力四射的你')
-        break
-      case 'cautious':
-        desc = desc.replace(/你/g, '沉稳的你')
-        break
-      case 'adventurous':
-        desc = desc.replace(/你/g, '大胆的你')
-        break
-    }
+  if (activeTitle.value) {
+    const prefix = stylePrefixMap[activeTitle.value.style]
+    desc = desc.replace(/你/g, prefix)
   }
   return desc
 })
@@ -73,32 +62,46 @@ function handleChoice(choiceId: string) {
   }
 }
 
+function applyTitleModifierToAffinity(characterId: string, baseChange: number): { value: number; bonus: number } {
+  if (!activeTitle.value || baseChange <= 0) return { value: baseChange, bonus: 0 }
+
+  let multiplier = 1
+  const mod = activeTitle.value.rewardModifier
+  if (mod.chatAffinityMultiplier) multiplier = Math.max(multiplier, mod.chatAffinityMultiplier)
+  if (mod.giftAffinityMultiplier) multiplier = Math.max(multiplier, mod.giftAffinityMultiplier)
+
+  const modified = Math.round(baseChange * multiplier)
+  return { value: modified, bonus: modified - baseChange }
+}
+
+function applyTitleModifierToMood(baseChange: number): { value: number; bonus: number } {
+  if (!activeTitle.value || baseChange <= 0) return { value: baseChange, bonus: 0 }
+
+  let multiplier = 1
+  if (activeTitle.value.rewardModifier.moodBonusMultiplier) {
+    multiplier = activeTitle.value.rewardModifier.moodBonusMultiplier
+  }
+
+  const modified = Math.round(baseChange * multiplier)
+  return { value: modified, bonus: modified - baseChange }
+}
+
 function formatEffect(effect: any): string {
   let result = ''
   if (effect.affinityChange !== undefined) {
     const char = gameConfig.characters.find(c => c.id === effect.characterId)
     const name = char?.name || effect.characterId
-    let affinityValue = effect.affinityChange
-    if (affinityValue > 0 && activeTitle.value?.rewardModifier.chatAffinityMultiplier) {
-      affinityValue = Math.round(affinityValue * activeTitle.value.rewardModifier.chatAffinityMultiplier)
-    }
-    const sign = affinityValue > 0 ? '+' : ''
-    result += `${name} 好感 ${sign}${affinityValue}`
-    if (affinityValue > effect.affinityChange) {
-      result += '★'
-    }
+    const { value, bonus } = applyTitleModifierToAffinity(effect.characterId, effect.affinityChange)
+    const sign = value > 0 ? '+' : ''
+    result += `${name} 好感 ${sign}${value}`
+    if (bonus > 0) result += `（+${bonus}称号）`
   }
   if (effect.moodChange !== undefined) {
     if (result) result += '，'
-    let moodValue = effect.moodChange
-    if (moodValue > 0 && activeTitle.value?.rewardModifier.moodBonusMultiplier) {
-      moodValue = Math.round(moodValue * activeTitle.value.rewardModifier.moodBonusMultiplier)
-    }
-    const sign = moodValue > 0 ? '+' : ''
-    result += `心情 ${sign}${moodValue}`
-    if (moodValue > effect.moodChange) {
-      result += '★'
-    }
+    const { value, bonus } = applyTitleModifierToMood(effect.moodChange)
+    const sign = value > 0 ? '+' : ''
+    result += `心情 ${sign}${value}`
+    if (bonus > 0) result += `（+${bonus}称号）`
   }
   return result
 }

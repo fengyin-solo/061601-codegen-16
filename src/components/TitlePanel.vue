@@ -48,38 +48,50 @@ function deactivateTitle() {
   gameStore.setActiveTitle(null)
 }
 
-function getProgress(title: TitleConfig): { current: number; total: number; label: string } | null {
+function getProgressList(title: TitleConfig): { current: number; total: number; label: string }[] {
   const cond = title.unlockCondition
+  const items: { current: number; total: number; label: string }[] = []
+
   if (cond.minChatCount !== undefined) {
-    return { current: gameStore.behaviorStats.chatCount, total: cond.minChatCount, label: `聊天 ${gameStore.behaviorStats.chatCount}/${cond.minChatCount}` }
+    items.push({ current: gameStore.behaviorStats.chatCount, total: cond.minChatCount, label: `聊天 ${gameStore.behaviorStats.chatCount}/${cond.minChatCount}` })
   }
   if (cond.minGiftCount !== undefined) {
-    return { current: gameStore.behaviorStats.giftCount, total: cond.minGiftCount, label: `送礼 ${gameStore.behaviorStats.giftCount}/${cond.minGiftCount}` }
+    items.push({ current: gameStore.behaviorStats.giftCount, total: cond.minGiftCount, label: `送礼 ${gameStore.behaviorStats.giftCount}/${cond.minGiftCount}` })
   }
   if (cond.minGiftSpent !== undefined) {
-    return { current: gameStore.behaviorStats.totalGiftSpent, total: cond.minGiftSpent, label: `送礼花费 ${gameStore.behaviorStats.totalGiftSpent}/${cond.minGiftSpent}` }
+    items.push({ current: gameStore.behaviorStats.totalGiftSpent, total: cond.minGiftSpent, label: `送礼花费 ${gameStore.behaviorStats.totalGiftSpent}/${cond.minGiftSpent}` })
   }
   if (cond.minWorkCount !== undefined) {
-    return { current: gameStore.behaviorStats.workCount, total: cond.minWorkCount, label: `打工 ${gameStore.behaviorStats.workCount}/${cond.minWorkCount}` }
+    items.push({ current: gameStore.behaviorStats.workCount, total: cond.minWorkCount, label: `打工 ${gameStore.behaviorStats.workCount}/${cond.minWorkCount}` })
   }
   if (cond.minDays !== undefined) {
-    return { current: gameStore.day, total: cond.minDays, label: `天数 ${gameStore.day}/${cond.minDays}` }
+    items.push({ current: gameStore.day, total: cond.minDays, label: `天数 ${gameStore.day}/${cond.minDays}` })
   }
   if (cond.minExclusiveAffinity !== undefined) {
     const maxAff = Math.max(...gameStore.unlockedCharacters.map(c => c.affinity), 0)
-    return { current: maxAff, total: cond.minExclusiveAffinity, label: `最高好感 ${maxAff}/${cond.minExclusiveAffinity}` }
+    items.push({ current: maxAff, total: cond.minExclusiveAffinity, label: `最高好感 ${maxAff}/${cond.minExclusiveAffinity}` })
+  }
+  if (cond.maxUnlockedCharacters !== undefined) {
+    const count = gameStore.unlockedCharacters.length
+    items.push({ current: count, total: cond.maxUnlockedCharacters, label: `解锁角色 ≤${cond.maxUnlockedCharacters}（当前${count}）` })
   }
   if (cond.multiCharacterThreshold !== undefined) {
     const count = gameStore.unlockedCharacters.filter(c => c.affinity >= cond.multiCharacterThreshold!).length
-    return { current: count, total: 2, label: `高好感角色 ${count}/2 (≥${cond.multiCharacterThreshold})` }
+    items.push({ current: count, total: 2, label: `高好感角色 ${count}/2 (≥${cond.multiCharacterThreshold})` })
   }
   if (cond.minPositiveChoices !== undefined) {
-    return { current: gameStore.behaviorStats.positiveChoiceCount, total: cond.minPositiveChoices, label: `积极选择 ${gameStore.behaviorStats.positiveChoiceCount}/${cond.minPositiveChoices}` }
+    items.push({ current: gameStore.behaviorStats.positiveChoiceCount, total: cond.minPositiveChoices, label: `积极选择 ${gameStore.behaviorStats.positiveChoiceCount}/${cond.minPositiveChoices}` })
   }
   if (cond.minRiskyChoices !== undefined) {
-    return { current: gameStore.behaviorStats.riskyChoiceCount, total: cond.minRiskyChoices, label: `冒险选择 ${gameStore.behaviorStats.riskyChoiceCount}/${cond.minRiskyChoices}` }
+    items.push({ current: gameStore.behaviorStats.riskyChoiceCount, total: cond.minRiskyChoices, label: `冒险选择 ${gameStore.behaviorStats.riskyChoiceCount}/${cond.minRiskyChoices}` })
   }
-  return null
+
+  return items
+}
+
+function getProgress(title: TitleConfig): { current: number; total: number; label: string } | null {
+  const list = getProgressList(title)
+  return list.length > 0 ? list[0] : null
 }
 
 function formatModifier(modifier: any): string[] {
@@ -208,14 +220,14 @@ function formatModifier(modifier: any): string[] {
               </div>
 
               <div v-if="!isUnlocked(title.id)" class="progress-section">
-                <div v-if="getProgress(title)" class="unlock-progress">
+                <div v-for="(prog, pIdx) in getProgressList(title)" :key="pIdx" class="unlock-progress">
                   <div class="progress-bar">
                     <div 
                       class="progress-fill"
-                      :style="{ width: `${Math.min(100, (getProgress(title)!.current / getProgress(title)!.total) * 100)}%` }"
+                      :style="{ width: `${Math.min(100, (prog.current / prog.total) * 100)}%` }"
                     ></div>
                   </div>
-                  <span class="progress-label">{{ getProgress(title)!.label }}</span>
+                  <span class="progress-label">{{ prog.label }}</span>
                 </div>
               </div>
 
