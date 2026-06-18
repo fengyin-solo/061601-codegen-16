@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { TimeOfDay, ActionType, GameEventConfig, EventChoice } from '../types/game'
+import type { TimeOfDay, ActionType, GameEventConfig, EventChoice, BehaviorStats, TitleConfig } from '../types/game'
 import gameConfig from '../config/gameConfig'
 import {
   clamp,
@@ -25,7 +25,7 @@ export interface LogEntry {
   id: number
   day: number
   time: TimeOfDay
-  type: 'action' | 'event' | 'system' | 'story'
+  type: 'action' | 'event' | 'system' | 'story' | 'title'
   message: string
   characterId?: string
   timestamp: number
@@ -40,6 +40,9 @@ export interface HistorySnapshot {
   flags: string[]
   triggeredEvents: string[]
   collectedCards: string[]
+  earnedTitles: string[]
+  activeTitleId: string | null
+  behaviorStats: BehaviorStats
   logs: LogEntry[]
 }
 
@@ -52,6 +55,8 @@ export const useGameStore = defineStore('game', () => {
   const currentEvent = ref<GameEventConfig | null>(null)
   const showEventModal = ref(false)
   const darkMode = ref(false)
+  const earnedTitles = ref<string[]>([])
+  const activeTitleId = ref<string | null>(null)
 
   const characters = ref<CharacterState[]>(
     gameConfig.characters.map(c => ({
@@ -67,6 +72,15 @@ export const useGameStore = defineStore('game', () => {
   const collectedCards = ref<string[]>([])
   const logs = ref<LogEntry[]>([])
   const history = ref<HistorySnapshot[]>([])
+  const behaviorStats = ref<BehaviorStats>({
+    chatCount: 0,
+    giftCount: 0,
+    totalGiftSpent: 0,
+    workCount: 0,
+    positiveChoiceCount: 0,
+    riskyChoiceCount: 0,
+    totalChoiceCount: 0
+  })
   let logIdCounter = 0
 
   const unlockedCharacters = computed(() =>
@@ -80,6 +94,21 @@ export const useGameStore = defineStore('game', () => {
   const currentCharacterConfig = computed(() =>
     gameConfig.characters.find(c => c.id === selectedCharacterId.value) || null
   )
+
+  const activeTitle = computed<TitleConfig | null>(() => {
+    if (!activeTitleId.value) return null
+    return gameConfig.titles.find(t => t.id === activeTitleId.value) || null
+  })
+
+  const earnedTitleConfigs = computed(() => {
+    return earnedTitles.value
+      .map(id => gameConfig.titles.find(t => t.id === id))
+      .filter((t): t is TitleConfig => t !== undefined)
+      .sort((a, b) => b.priority - a.priority)
+  })
+
+  const unlockedTitleCount = computed(() => earnedTitles.value.length)
+  const totalTitleCount = computed(() => gameConfig.titles.length)
 
   function addLog(type: LogEntry['type'], message: string, characterId?: string) {
     logs.value.push({
@@ -103,6 +132,9 @@ export const useGameStore = defineStore('game', () => {
       flags: [...flags.value],
       triggeredEvents: [...triggeredEvents.value],
       collectedCards: [...collectedCards.value],
+      earnedTitles: [...earnedTitles.value],
+      activeTitleId: activeTitleId.value,
+      behaviorStats: { ...behaviorStats.value },
       logs: JSON.parse(JSON.stringify(logs.value))
     })
     if (history.value.length > 100) {
@@ -121,6 +153,9 @@ export const useGameStore = defineStore('game', () => {
     flags.value = [...snapshot.flags]
     triggeredEvents.value = [...snapshot.triggeredEvents]
     collectedCards.value = [...snapshot.collectedCards]
+    earnedTitles.value = [...snapshot.earnedTitles]
+    activeTitleId.value = snapshot.activeTitleId
+    behaviorStats.value = { ...snapshot.behaviorStats }
     logs.value = JSON.parse(JSON.stringify(snapshot.logs))
     history.value = history.value.slice(0, stepIndex)
     addLog('system', `回退到第 ${snapshot.day} 天 ${getTimeLabel(snapshot.timeSlot)}`)
@@ -164,7 +199,121 @@ export const useGameStore = defineStore('game', () => {
   function updateCharacterMood(characterId: string, change: number) {
     const char = getCharacterState(characterId)
     if (!char || !char.unlocked) return
-    char.mood = clamp(char.mood + change, gameConfig.minMood, gameConfig.maxMood)
+
+    let finalChange = change
+    if (change > 0 && activeTitle.value?.rewardModifier.moodBonusMultiplier) {
+      finalChange = Math.round(change * activeTitle.value.rewardModifier.moodBonusMultiplier)
+    }
+
+    char.mood = clamp(char.mood + finalChange, gameConfig.minMood, gameConfig.maxMood)
+  }
+
+  function checkAndUnlockTitles() {
+    const newlyUnlocked: TitleConfig[] = []
+
+    gameConfig.titles.forEach(title => {
+      if (earnedTitles.value.includes(title.id)) return
+      const cond = title.unlockCondition
+
+      let eligible = true
+
+      if (cond.minChatCount !== undefined && behaviorStats.value.chatCount < cond.minChatCount) {
+        eligible = false
+      }
+      if (cond.minGiftCount !== undefined && behaviorStats.value.giftCount < cond.minGiftCount) {
+        eligible = false
+      }
+      if (cond.minGiftSpent !== undefined && behaviorStats.value.totalGiftSpent < cond.minGiftSpent) {
+        eligible = false
+      }
+      if (cond.minWorkCount !== undefined && behaviorStats.value.workCount < cond.minWorkCount) {
+        eligible = false
+      }
+      if (cond.minDays !== undefined && day.value < cond.minDays) {
+        eligible = false
+      }
+      if (cond.maxUnlockedCharacters !== undefined && unlockedCharacters.value.length > cond.maxUnlockedCharacters) {
+        eligible = false
+      }
+      if (cond.minExclusiveAffinity !== undefined) {
+        const hasExclusive = unlockedCharacters.value.some(c => c.affinity >= cond.minExclusiveAffinity!)
+        if (!hasExclusive) eligible = false
+      }
+      if (cond.multiCharacterThreshold !== undefined) {
+        const charsAboveThreshold = unlockedCharacters.value.filter(c => c.affinity >= cond.multiCharacterThreshold!).length
+        if (charsAboveThreshold < 2) eligible = false
+      }
+      if (cond.minPositiveChoices !== undefined && behaviorStats.value.positiveChoiceCount < cond.minPositiveChoices) {
+        eligible = false
+      }
+      if (cond.minRiskyChoices !== undefined && behaviorStats.value.riskyChoiceCount < cond.minRiskyChoices) {
+        eligible = false
+      }
+
+      if (eligible) {
+        newlyUnlocked.push(title)
+      }
+    })
+
+    if (newlyUnlocked.length > 0) {
+      newlyUnlocked.forEach(title => {
+        earnedTitles.value.push(title.id)
+        addLog('title', `🏆 获得新称号：${title.icon} ${title.name} — ${title.description}`)
+      })
+
+      newlyUnlocked.sort((a, b) => b.priority - a.priority)
+      if (!activeTitleId.value || newlyUnlocked[0].priority > (activeTitle.value?.priority || 0)) {
+        activeTitleId.value = newlyUnlocked[0].id
+        addLog('title', `✨ 当前称号自动切换为：${newlyUnlocked[0].icon} ${newlyUnlocked[0].name}`)
+      }
+    }
+  }
+
+  function setActiveTitle(titleId: string | null) {
+    if (titleId === null) {
+      activeTitleId.value = null
+      addLog('title', '已取消激活称号')
+      return
+    }
+    if (earnedTitles.value.includes(titleId)) {
+      activeTitleId.value = titleId
+      const title = gameConfig.titles.find(t => t.id === titleId)
+      if (title) {
+        addLog('title', `✨ 激活称号：${title.icon} ${title.name}`)
+      }
+    }
+  }
+
+  function getCharacterAddressTerm(characterId: string): string | null {
+    if (!activeTitle.value) return null
+    return activeTitle.value.addressTerms[characterId] || null
+  }
+
+  function applyChatAffinityModifier(baseChange: number): number {
+    let result = baseChange
+    if (activeTitle.value?.rewardModifier.chatAffinityMultiplier) {
+      result = baseChange * activeTitle.value.rewardModifier.chatAffinityMultiplier
+    }
+    return Math.round(result * 10) / 10
+  }
+
+  function applyGiftAffinityModifier(baseChange: number): number {
+    let result = baseChange
+    if (activeTitle.value?.rewardModifier.giftAffinityMultiplier) {
+      result = baseChange * activeTitle.value.rewardModifier.giftAffinityMultiplier
+    }
+    return Math.round(result * 10) / 10
+  }
+
+  function applyWorkRewardModifier(baseReward: number): number {
+    let result = baseReward
+    if (activeTitle.value?.rewardModifier.workRewardMultiplier) {
+      result = Math.round(baseReward * activeTitle.value.rewardModifier.workRewardMultiplier)
+    }
+    if (activeTitle.value?.rewardModifier.resourceGainBonus) {
+      result += activeTitle.value.rewardModifier.resourceGainBonus
+    }
+    return result
   }
 
   function advanceTime() {
@@ -237,20 +386,29 @@ export const useGameStore = defineStore('game', () => {
     const topic = charConfig.chatTopics[
       randomInt(0, charConfig.chatTopics.length - 1)
     ]
-    const affinityChange = calculateChatAffinity(
+    const baseAffinityChange = calculateChatAffinity(
       topic.topic,
       charConfig,
       charState.mood,
       timeSlot.value
     )
+    const affinityChange = applyChatAffinityModifier(baseAffinityChange)
+
+    behaviorStats.value.chatCount++
 
     updateCharacterAffinity(characterId, affinityChange)
     updateCharacterMood(characterId, affinityChange > 0 ? 5 : -3)
 
-    const moodBefore = charState.mood
     const characterName = charConfig.name
+    const addressTerm = getCharacterAddressTerm(characterId)
 
-    let message = `和 ${characterName} 聊起了「${topic.topic}」`
+    let message = ''
+    if (addressTerm) {
+      message = `${characterName}看向你：「${addressTerm}，我们来聊聊${topic.topic}吧」`
+    } else {
+      message = `和 ${characterName} 聊起了「${topic.topic}」`
+    }
+
     if (affinityChange > 0) {
       message += `，ta似乎很开心！（好感 +${affinityChange}）`
     } else if (affinityChange < 0) {
@@ -260,6 +418,7 @@ export const useGameStore = defineStore('game', () => {
     }
 
     addLog('action', message, characterId)
+    checkAndUnlockTitles()
     advanceTime()
     return true
   }
@@ -275,13 +434,16 @@ export const useGameStore = defineStore('game', () => {
     }
 
     resources.value -= giftConfig.price
+    behaviorStats.value.giftCount++
+    behaviorStats.value.totalGiftSpent += giftConfig.price
 
-    const affinityChange = calculateGiftAffinity(
+    const baseAffinityChange = calculateGiftAffinity(
       giftId,
       charConfig,
       giftConfig.price,
       charState.mood
     )
+    const affinityChange = applyGiftAffinityModifier(baseAffinityChange)
 
     updateCharacterAffinity(characterId, affinityChange)
     updateCharacterMood(
@@ -290,7 +452,14 @@ export const useGameStore = defineStore('game', () => {
     )
 
     const characterName = charConfig.name
-    let message = `送给 ${characterName} 一份「${giftConfig.name}」`
+    const addressTerm = getCharacterAddressTerm(characterId)
+
+    let message = ''
+    if (addressTerm) {
+      message = `${characterName}接过礼物，笑着对你说：「${addressTerm}，你太客气了」`
+    } else {
+      message = `送给 ${characterName} 一份「${giftConfig.name}」`
+    }
 
     if (isGiftLiked(giftId, charConfig)) {
       message += `，ta非常喜欢！（好感 +${affinityChange}）`
@@ -301,14 +470,18 @@ export const useGameStore = defineStore('game', () => {
     }
 
     addLog('action', message, characterId)
+    checkAndUnlockTitles()
     advanceTime()
     return true
   }
 
   function performWork(): boolean {
     const { min, max } = gameConfig.workRewards
-    const earned = randomInt(min, max)
+    const baseEarned = randomInt(min, max)
+    const earned = applyWorkRewardModifier(baseEarned)
     resources.value += earned
+
+    behaviorStats.value.workCount++
 
     characters.value.forEach(char => {
       if (char.unlocked) {
@@ -316,7 +489,14 @@ export const useGameStore = defineStore('game', () => {
       }
     })
 
-    addLog('action', `💼 打工赚了 ${earned} 代币（角色们的心情略有下降）`)
+    let message = `💼 打工赚了 ${earned} 代币`
+    if (earned > baseEarned) {
+      message += `（称号加成 +${earned - baseEarned}）`
+    }
+    message += '（角色们的心情略有下降）'
+
+    addLog('action', message)
+    checkAndUnlockTitles()
     advanceTime()
     return true
   }
@@ -363,10 +543,31 @@ export const useGameStore = defineStore('game', () => {
 
   function handleEventChoice(choice: EventChoice) {
     saveHistory()
+    behaviorStats.value.totalChoiceCount++
+
+    const totalAffinityChange = choice.effects.reduce((sum, e) => sum + (e.affinityChange || 0), 0)
+    const hasNegativeEffect = choice.effects.some(e => (e.affinityChange || 0) < -5)
+    const hasHighCost = (choice.resourceChange || 0) < -30
+
+    if (totalAffinityChange > 0) {
+      behaviorStats.value.positiveChoiceCount++
+    }
+    if (hasNegativeEffect || hasHighCost) {
+      behaviorStats.value.riskyChoiceCount++
+    }
 
     choice.effects.forEach(effect => {
       if (effect.affinityChange !== undefined) {
-        updateCharacterAffinity(effect.characterId, effect.affinityChange)
+        let affinityChange = effect.affinityChange
+        if (affinityChange > 0) {
+          if (activeTitleId.value) {
+            const title = gameConfig.titles.find(t => t.id === activeTitleId.value)
+            if (title?.rewardModifier.chatAffinityMultiplier) {
+              affinityChange = Math.round(affinityChange * title.rewardModifier.chatAffinityMultiplier)
+            }
+          }
+        }
+        updateCharacterAffinity(effect.characterId, affinityChange)
       }
       if (effect.moodChange !== undefined) {
         updateCharacterMood(effect.characterId, effect.moodChange)
@@ -399,6 +600,8 @@ export const useGameStore = defineStore('game', () => {
     currentEvent.value = null
     showEventModal.value = false
 
+    checkAndUnlockTitles()
+
     if (choice.nextEventId) {
       const nextEvent = gameConfig.events.find(e => e.id === choice.nextEventId)
       if (nextEvent) {
@@ -426,6 +629,8 @@ export const useGameStore = defineStore('game', () => {
     selectedCharacterId.value = null
     currentEvent.value = null
     showEventModal.value = false
+    earnedTitles.value = []
+    activeTitleId.value = null
 
     characters.value = gameConfig.characters.map(c => ({
       id: c.id,
@@ -439,6 +644,15 @@ export const useGameStore = defineStore('game', () => {
     collectedCards.value = []
     logs.value = []
     history.value = []
+    behaviorStats.value = {
+      chatCount: 0,
+      giftCount: 0,
+      totalGiftSpent: 0,
+      workCount: 0,
+      positiveChoiceCount: 0,
+      riskyChoiceCount: 0,
+      totalChoiceCount: 0
+    }
     logIdCounter = 0
 
     addLog('system', '🎮 游戏开始！欢迎来到恋爱物语')
@@ -470,6 +684,13 @@ export const useGameStore = defineStore('game', () => {
     currentEvent,
     showEventModal,
     darkMode,
+    earnedTitles,
+    activeTitleId,
+    activeTitle,
+    earnedTitleConfigs,
+    unlockedTitleCount,
+    totalTitleCount,
+    behaviorStats,
     addLog,
     saveHistory,
     rollbackToStep,
@@ -482,6 +703,12 @@ export const useGameStore = defineStore('game', () => {
     toggleDarkMode,
     resetGame,
     initGame,
-    checkAndTriggerEvent
+    checkAndTriggerEvent,
+    checkAndUnlockTitles,
+    setActiveTitle,
+    getCharacterAddressTerm,
+    applyChatAffinityModifier,
+    applyGiftAffinityModifier,
+    applyWorkRewardModifier
   }
 })

@@ -305,7 +305,115 @@ export const gameConfig: GameConfig = {
     { type: 'work', name: '打工', icon: '💼', description: '辛苦工作赚取代币', energyCost: 2 }
   ],
 
-  workRewards: { min: 15, max: 35 }
+  workRewards: { min: 15, max: 35 },
+
+  titles: [
+    {
+      id: 'romantic_poet',
+      name: '浪漫诗人',
+      icon: '🌹',
+      style: 'romantic',
+      description: '善于用言语打动人心，聊天效果显著提升',
+      unlockCondition: { minChatCount: 20, minPositiveChoices: 8 },
+      rewardModifier: { chatAffinityMultiplier: 1.3, moodBonusMultiplier: 1.2 },
+      addressTerms: {
+        linxiaoyu: '温柔的诗人',
+        sufei: '甜言蜜语的家伙',
+        yeqing: '...有趣的人'
+      },
+      priority: 10
+    },
+    {
+      id: 'generous_patron',
+      name: '慷慨施主',
+      icon: '💎',
+      style: 'generous',
+      description: '出手阔绰，送礼总能获得更多好感',
+      unlockCondition: { minGiftSpent: 300, minGiftCount: 10 },
+      rewardModifier: { giftAffinityMultiplier: 1.25 },
+      addressTerms: {
+        linxiaoyu: '贴心的施主',
+        sufei: '大财主~',
+        yeqing: '不懂得节俭的人'
+      },
+      priority: 10
+    },
+    {
+      id: 'hardworking_bee',
+      name: '勤劳蜜蜂',
+      icon: '🐝',
+      style: 'hardworking',
+      description: '努力工作的人，打工收益大幅提高',
+      unlockCondition: { minWorkCount: 25 },
+      rewardModifier: { workRewardMultiplier: 1.5, resourceGainBonus: 5 },
+      addressTerms: {
+        linxiaoyu: '勤奋的人',
+        sufei: '拼命三郎',
+        yeqing: '...努力的人'
+      },
+      priority: 10
+    },
+    {
+      id: 'devoted_soul',
+      name: '专情之人',
+      icon: '💍',
+      style: 'devoted',
+      description: '对一人一心一意，好感增长更快',
+      unlockCondition: { minExclusiveAffinity: 80, maxUnlockedCharacters: 2 },
+      rewardModifier: { giftAffinityMultiplier: 1.15, chatAffinityMultiplier: 1.15, moodBonusMultiplier: 1.3 },
+      addressTerms: {
+        linxiaoyu: '专一的你',
+        sufei: '难得的痴情人',
+        yeqing: '让人安心的存在'
+      },
+      priority: 15
+    },
+    {
+      id: 'playboy_legend',
+      name: '情场传说',
+      icon: '🦋',
+      style: 'playboy',
+      description: '万花丛中过，魅力非凡但难以专注',
+      unlockCondition: { multiCharacterThreshold: 60 },
+      rewardModifier: { chatAffinityMultiplier: 1.1 },
+      addressTerms: {
+        linxiaoyu: '受欢迎的人...',
+        sufei: '花心大萝卜！',
+        yeqing: '我记住你了'
+      },
+      priority: 8
+    },
+    {
+      id: 'cautious_sage',
+      name: '谨慎贤者',
+      icon: '🦉',
+      style: 'cautious',
+      description: '行事稳妥，选择更安全的选项',
+      unlockCondition: { minPositiveChoices: 15, minDays: 14 },
+      rewardModifier: { moodBonusMultiplier: 1.4 },
+      addressTerms: {
+        linxiaoyu: '可靠的人',
+        sufei: '老好人~',
+        yeqing: '有趣的观察对象'
+      },
+      priority: 9
+    },
+    {
+      id: 'adventurous_heart',
+      name: '冒险家之心',
+      icon: '⚔️',
+      style: 'adventurous',
+      description: '敢于冒险，选择大胆选项，回报丰厚',
+      unlockCondition: { minRiskyChoices: 6 },
+      rewardModifier: { workRewardMultiplier: 1.2, giftAffinityMultiplier: 1.1, chatAffinityMultiplier: 1.1 },
+      addressTerms: {
+        linxiaoyu: '勇敢的人',
+        sufei: '大胆的家伙！',
+        yeqing: '...鲁莽'
+      },
+      priority: 9
+    }
+  ]
 }
 
 export default gameConfig

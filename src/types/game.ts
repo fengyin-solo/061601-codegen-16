@@ -6,6 +6,8 @@ export type ActionType = 'chat' | 'gift' | 'work'
 
 export type Rarity = 'common' | 'rare' | 'epic' | 'legendary'
 
+export type TitleStyle = 'romantic' | 'generous' | 'hardworking' | 'playboy' | 'devoted' | 'cautious' | 'adventurous'
+
 export interface CharacterConfig {
   id: string
   name: string
@@ -83,6 +85,47 @@ export interface ActionConfig {
   energyCost: number
 }
 
+export interface TitleRewardModifier {
+  workRewardMultiplier?: number
+  giftAffinityMultiplier?: number
+  chatAffinityMultiplier?: number
+  moodBonusMultiplier?: number
+  resourceGainBonus?: number
+}
+
+export interface TitleConfig {
+  id: string
+  name: string
+  icon: string
+  style: TitleStyle
+  description: string
+  unlockCondition: {
+    minChatCount?: number
+    minGiftCount?: number
+    minGiftSpent?: number
+    minWorkCount?: number
+    minDays?: number
+    maxUnlockedCharacters?: number
+    minExclusiveAffinity?: number
+    multiCharacterThreshold?: number
+    minPositiveChoices?: number
+    minRiskyChoices?: number
+  }
+  rewardModifier: TitleRewardModifier
+  addressTerms: Record<string, string>
+  priority: number
+}
+
+export interface BehaviorStats {
+  chatCount: number
+  giftCount: number
+  totalGiftSpent: number
+  workCount: number
+  positiveChoiceCount: number
+  riskyChoiceCount: number
+  totalChoiceCount: number
+}
+
 export interface GameConfig {
   title: string
   initialResources: number
@@ -101,4 +144,5 @@ export interface GameConfig {
   events: GameEventConfig[]
   actions: ActionConfig[]
   workRewards: { min: number; max: number }
+  titles: TitleConfig[]
 }

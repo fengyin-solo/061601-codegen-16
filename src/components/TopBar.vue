@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useGameStore } from '../stores/gameStore'
 import { getTimeLabel, getTimeIcon } from '../utils/gameUtils'
 
@@ -6,11 +7,20 @@ const emit = defineEmits<{
   (e: 'toggle-save'): void
   (e: 'toggle-cards'): void
   (e: 'toggle-history'): void
+  (e: 'toggle-titles'): void
   (e: 'toggle-theme'): void
   (e: 'reset'): void
 }>()
 
 const gameStore = useGameStore()
+
+const activeTitleDisplay = computed(() => {
+  if (!gameStore.activeTitle) return null
+  return {
+    icon: gameStore.activeTitle.icon,
+    name: gameStore.activeTitle.name
+  }
+})
 </script>
 
 <template>
@@ -37,9 +47,17 @@ const gameStore = useGameStore()
         <span class="status-icon">💰</span>
         <span>{{ gameStore.resources }} 代币</span>
       </div>
+      <div v-if="activeTitleDisplay" class="status-item title" title="当前称号">
+        <span class="status-icon">{{ activeTitleDisplay.icon }}</span>
+        <span class="title-name">{{ activeTitleDisplay.name }}</span>
+      </div>
     </div>
 
     <div class="toolbar">
+      <button class="toolbar-btn" @click="emit('toggle-titles')" title="称号收藏">
+        🏆
+        <span v-if="gameStore.unlockedTitleCount > 0" class="badge">{{ gameStore.unlockedTitleCount }}</span>
+      </button>
       <button class="toolbar-btn" @click="emit('toggle-cards')" title="卡牌收藏">
         🎴
       </button>
@@ -105,6 +123,16 @@ const gameStore = useGameStore()
   font-weight: 500;
 }
 
+.status-item.title {
+  background: linear-gradient(135deg, var(--accent-light), var(--bg-tertiary));
+  border: 1px solid var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.status-item.title .title-name {
+  font-weight: 600;
+}
+
 .status-icon {
   font-size: 18px;
 }
@@ -123,6 +151,7 @@ const gameStore = useGameStore()
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
 }
 
 .toolbar-btn:hover {
@@ -132,6 +161,24 @@ const gameStore = useGameStore()
 
 .toolbar-btn.reset:hover {
   background: #fee2e2;
+}
+
+.badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: var(--accent-primary);
+  color: white;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 @media (max-width: 768px) {

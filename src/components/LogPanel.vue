@@ -20,7 +20,8 @@ function getLogTypeClass(type: string): string {
     action: 'log-action',
     event: 'log-event',
     system: 'log-system',
-    story: 'log-story'
+    story: 'log-story',
+    title: 'log-title'
   }
   return classes[type] || ''
 }
@@ -30,7 +31,8 @@ function getLogTypeIcon(type: string): string {
     action: '🎯',
     event: '📖',
     system: '💻',
-    story: '📝'
+    story: '📝',
+    title: '🏆'
   }
   return icons[type] || '•'
 }
@@ -147,6 +149,17 @@ watch(() => gameStore.logs.length, async () => {
 
 [data-theme='dark'] .log-story {
   background: #451a03;
+}
+
+.log-title {
+  border-left-color: #ec4899;
+  background: linear-gradient(90deg, #fdf2f8, #faf5ff);
+  border: 1px solid #fbcfe8;
+}
+
+[data-theme='dark'] .log-title {
+  background: linear-gradient(90deg, #831843, #581c87);
+  border-color: #db2777;
 }
 
 .log-header {
